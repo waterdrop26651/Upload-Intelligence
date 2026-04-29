@@ -273,6 +273,40 @@ Agent 在互动中注意到什么、重视什么、忽略什么——
 
 ---
 
+## 形态：OpenClaw 插件
+
+Spider 作为 OpenClaw 插件运行，不需要独立的 Agent 进程。
+
+**选型理由**：Codex 的插件钩子在运行时未接入（2026 年 4 月），且无原生持久化状态 API。OpenClaw 的 `agent_end` 钩子直接命中 Spider 的呼气需求，`registerSessionExtension` 提供原生状态持久化。
+
+**最小接口**——Spider 只用三个钩子：
+
+```
+gateway_start  →  加载邻接表到内存，启动自主心跳定时器
+
+agent_end      →  对话结束后，读取本轮对话记录
+                  → 做因果推断，创建/更新边
+                  → 写邻接表到磁盘
+
+gateway_stop   →  保存未写入状态，停心跳定时器
+```
+
+**不需要的钩子**：
+- `before_prompt_build` — Spider 不往对话 Prompt 注入内容
+- `registerTool` — Spider 不暴露工具给用户
+- `registerChannel` — Spider 没有自己的消息通道
+
+**不需要的权限**：`allowConversationAccess` 非必须——Spider 不参与对话，只做后台织网。
+
+**`openclaw.plugin.json` 示意**：
+```json
+{
+  "id": "spider",
+  "name": "Spider - Memory Web Weaver",
+  "activation": { "onStartup": true }
+}
+```
+
 ---
 
 ## 故意留白
